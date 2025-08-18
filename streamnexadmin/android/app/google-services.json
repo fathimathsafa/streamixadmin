@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "826495799815",
+    "project_id": "streamix-30880",
+    "storage_bucket": "streamix-30880.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:826495799815:android:64e5bab1ee14cb361ad0a2",
+        "android_client_info": {
+          "package_name": "com.example.nexis_netflix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCq16ilKKCbV-2tqcCEAh7YPwwMjbqVOzU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:826495799815:android:2405a63c60fb8a2d1ad0a2",
+        "android_client_info": {
+          "package_name": "com.example.streamnexadmin"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCq16ilKKCbV-2tqcCEAh7YPwwMjbqVOzU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
