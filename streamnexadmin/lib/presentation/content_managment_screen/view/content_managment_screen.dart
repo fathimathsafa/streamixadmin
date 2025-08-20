@@ -79,9 +79,39 @@ class _ContentManagementScreenState extends State<ContentManagementScreen> with 
 
   Future<void> _loadUserVideos() async {
     try {
-      // For now, we'll use an empty list since user_videos collection doesn't exist yet
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('videos')
+          .orderBy('uploadedAt', descending: true)
+          .get();
+
       setState(() {
-        userVideos = [];
+        userVideos = querySnapshot.docs.map((doc) {
+          final data = doc.data();
+          return Content(
+            data['title']?.toString() ?? 'Untitled',
+            'Movie',
+            data['category']?.toString() ?? 'Unknown',
+            _parseYear(data['releaseDate']),
+            _parseRating(data['rating']),
+            data['thumbnailUrl']?.toString() ?? '',
+            data['videoUrl']?.toString() ?? '',
+            data['uploadedBy']?.toString() ?? 'user',
+            _formatUploadTime(data['uploadedAt']),
+            data['director']?.toString() ?? '',
+            data['duration']?.toString() ?? '',
+            data['language']?.toString() ?? '',
+            '',
+            data['description']?.toString() ?? '',
+            data['starring']?.toString() ?? '',
+            data['tags']?.toString() ?? '',
+            data['fileName']?.toString() ?? '',
+            (data['views'] is int) ? data['views'] as int : int.tryParse('${data['views']}') ?? 0,
+            data['status']?.toString() ?? 'active',
+            _parseRating(data['userRating']),
+            _parseFileSize(data['fileSizeGB']),
+            doc.id, // document ID for delete operations
+          );
+        }).toList();
       });
     } catch (e) {
       print('Error loading user videos: $e');

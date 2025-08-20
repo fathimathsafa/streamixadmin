@@ -6,6 +6,7 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:streamnexadmin/presentation/content_managment_screen/view/content_managment_screen.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:chewie/src/material/material_controls.dart';
 
 class VideoDetailsScreen extends StatefulWidget {
   final Content content;
@@ -42,7 +43,10 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> {
           looping: false,
           allowFullScreen: true,
           allowMuting: true,
+          showOptions: false,
+          allowPlaybackSpeedChanging: false,
           showControlsOnInitialize: true,
+
           materialProgressColors: ChewieProgressColors(
             playedColor: ColorTheme.secondaryColor,
             handleColor: ColorTheme.secondaryColor,
@@ -140,7 +144,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> {
           style: TextStyles.appBarHeadding(),
         ),
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back_ios, color: Colors.white),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -172,7 +176,14 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> {
                         ? AspectRatio(
                             aspectRatio: 16 / 9,
                             child: (_chewieController != null && _videoPlayerController != null && _videoPlayerController!.value.isInitialized)
-                                ? Chewie(controller: _chewieController!)
+                                ? Theme(
+                                    data: Theme.of(context).copyWith(
+                                      iconTheme: Theme.of(context).iconTheme.copyWith(
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    child: Chewie(controller: _chewieController!),
+                                  )
                                 : Center(
                                     child: Column(
                                       mainAxisSize: MainAxisSize.min,
@@ -432,5 +443,7 @@ class _VideoDetailsScreenState extends State<VideoDetailsScreen> {
     );
   }
 }
+
+
 
 

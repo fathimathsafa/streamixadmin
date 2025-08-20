@@ -4,6 +4,7 @@ import 'package:streamnexadmin/presentation/bottom_navigation_screen/view/bottom
 import 'package:streamnexadmin/core/constants/color_constants.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LogInScreen extends StatefulWidget {
   const LogInScreen({Key? key}) : super(key: key);
@@ -312,7 +313,9 @@ class _LogInScreenState extends State<LogInScreen> {
         final email = _emailController.text.trim();
         final password = _passwordController.text;
 
-        // Simple Firebase Authentication login
+        print('🔐 Attempting admin login for: $email');
+
+        // First try to sign in
         final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: email,
           password: password,
@@ -320,13 +323,28 @@ class _LogInScreenState extends State<LogInScreen> {
 
         final user = userCredential.user;
         if (user != null) {
-          _showSnackBar('Welcome back, Admin!');
+          print('✅ User authenticated: ${user.uid}');
           
-          // Navigate to bottom navigation screen
-          Navigator.pushReplacement(
-            context, 
-            MaterialPageRoute(builder: (context) => BottomNavigationScreen())
-          );
+          // Check if user is an admin
+          final adminDoc = await FirebaseFirestore.instance
+              .collection('admins')
+              .doc(user.uid)
+              .get();
+
+          if (adminDoc.exists) {
+            print('✅ User is admin - proceeding to admin panel');
+            _showSnackBar('Welcome back, Admin!');
+            
+            // Navigate to bottom navigation screen
+            Navigator.pushReplacement(
+              context, 
+              MaterialPageRoute(builder: (context) => BottomNavigationScreen())
+            );
+          } else {
+            print('❌ User is not an admin - logging out');
+            await FirebaseAuth.instance.signOut();
+            _showSnackBar('Access denied. This is an admin-only application.', isError: true);
+          }
         }
 
       } on FirebaseAuthException catch (e) {

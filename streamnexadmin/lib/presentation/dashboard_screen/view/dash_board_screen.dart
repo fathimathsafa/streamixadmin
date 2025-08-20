@@ -2,8 +2,95 @@
 import 'package:flutter/material.dart';
 import 'package:streamnexadmin/core/constants/color_constants.dart';
 import 'package:streamnexadmin/core/constants/text_styles.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
+  @override
+  _DashboardScreenState createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  int _totalUsers = 0;
+  int _totalVideos = 0;
+  int _adminVideos = 0;
+  int _userVideos = 0;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+  }
+
+  Future<void> _loadDashboardData() async {
+    try {
+      print('📊 Loading dashboard data...');
+      
+      // Load total users count
+      final usersQuery = await FirebaseFirestore.instance
+          .collection('users')
+          .get();
+      
+      // Load total videos count (all videos - admin and user uploaded)
+      final videosQuery = await FirebaseFirestore.instance
+          .collection('videos')
+          .get();
+      
+      // Count admin vs user videos
+      int adminVideos = 0;
+      int userVideos = 0;
+      
+      print('🔍 Found ${videosQuery.docs.length} videos in total');
+      for (int i = 0; i < videosQuery.docs.length; i++) {
+        final videoData = videosQuery.docs[i].data();
+        final uploadedBy = videoData['uploadedBy'] ?? 'Unknown';
+        
+        // Check if uploadedBy is an admin (you can modify this logic based on your admin IDs)
+        // For now, let's assume admin videos have specific uploader IDs or we can check against admin collection
+        if (_isAdminUploader(uploadedBy)) {
+          adminVideos++;
+          print('👑 Admin Video ${i + 1}: ${videoData['title'] ?? 'Untitled'} - Uploaded by: $uploadedBy');
+        } else {
+          userVideos++;
+          print('👤 User Video ${i + 1}: ${videoData['title'] ?? 'Untitled'} - Uploaded by: $uploadedBy');
+        }
+      }
+      
+      setState(() {
+        _totalUsers = usersQuery.docs.length;
+        _totalVideos = videosQuery.docs.length;
+        _adminVideos = adminVideos;
+        _userVideos = userVideos;
+        _isLoading = false;
+      });
+      
+      print('✅ Dashboard data loaded - Users: $_totalUsers, Total Videos: $_totalVideos, Admin Videos: $_adminVideos, User Videos: $_userVideos');
+      
+    } catch (e) {
+      print('❌ Error loading dashboard data: $e');
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  bool _isAdminUploader(String uploaderId) {
+    // You can modify this logic based on how you identify admin users
+    // For example, check if the uploader ID exists in an admin collection
+    // or if it matches specific admin user IDs
+    
+    // Option 1: Check against admin collection (recommended)
+    // This would require an additional query to check if uploaderId is in admin collection
+    
+    // Option 2: Check against specific admin IDs (if you know them)
+    // List<String> adminIds = ['admin1', 'admin2', 'admin3'];
+    // return adminIds.contains(uploaderId);
+    
+    // Option 3: Check if uploaderId contains 'admin' (simple approach)
+    return uploaderId.toLowerCase().contains('admin') || 
+           uploaderId.toLowerCase().contains('moderator') ||
+           uploaderId.toLowerCase().contains('admin_');
+  }
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -62,17 +149,61 @@ class DashboardScreen extends StatelessWidget {
               ),
               SizedBox(height: spacing),
               // Horizontal stat cards instead of GridView
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildStatCard('Total Users', '125,430', Icons.people, ColorTheme.secondaryColor, isTablet),
-                  ),
-                  SizedBox(width: spacing),
-                  Expanded(
-                    child: _buildStatCard('Total Content', '8,945', Icons.movie, ColorTheme.secondaryColor, isTablet),
-                  ),
-                ],
-              ),
+              _isLoading
+                  ? Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildLoadingCard('Total Users', Icons.people, ColorTheme.secondaryColor, isTablet),
+                            ),
+                            SizedBox(width: spacing),
+                            Expanded(
+                              child: _buildLoadingCard('Total Videos', Icons.movie, ColorTheme.secondaryColor, isTablet),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: spacing),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildLoadingCard('Admin Videos', Icons.admin_panel_settings, Colors.blue, isTablet),
+                            ),
+                            SizedBox(width: spacing),
+                            Expanded(
+                              child: _buildLoadingCard('User Videos', Icons.person, Colors.green, isTablet),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )
+                  : Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard('Total Users', _formatNumber(_totalUsers), Icons.people, ColorTheme.secondaryColor, isTablet),
+                            ),
+                            SizedBox(width: spacing),
+                            Expanded(
+                              child: _buildStatCard('Total Videos', _formatNumber(_totalVideos), Icons.movie, ColorTheme.secondaryColor, isTablet),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: spacing),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildStatCard('Admin Videos', _formatNumber(_adminVideos), Icons.admin_panel_settings, Colors.blue, isTablet),
+                            ),
+                            SizedBox(width: spacing),
+                            Expanded(
+                              child: _buildStatCard('User Videos', _formatNumber(_userVideos), Icons.person, Colors.green, isTablet),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
               SizedBox(height: spacing),
               Text(
                 'Top Watched Content',
@@ -310,13 +441,54 @@ class DashboardScreen extends StatelessWidget {
               title, 
               textAlign: TextAlign.center,
               style: TextStyles.smallText(
-                                color: color
-
+                color: color
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildLoadingCard(String title, IconData icon, Color color, bool isTablet) {
+    return Card(
+      color: Colors.grey[850],
+      child: Padding(
+        padding: EdgeInsets.all(isTablet ? 20 : 16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon, 
+              size: isTablet ? 50 : 40, 
+              color: color
+            ),
+            SizedBox(height: isTablet ? 15 : 10),
+            CircularProgressIndicator(
+              color: color,
+              strokeWidth: 2,
+            ),
+            SizedBox(height: 5),
+            Text(
+              title, 
+              textAlign: TextAlign.center,
+              style: TextStyles.smallText(
+                color: color
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatNumber(int number) {
+    if (number >= 1000000) {
+      return '${(number / 1000000).toStringAsFixed(1)}M';
+    } else if (number >= 1000) {
+      return '${(number / 1000).toStringAsFixed(1)}K';
+    } else {
+      return number.toString();
+    }
   }
 }

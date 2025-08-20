@@ -3,23 +3,88 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:streamnexadmin/core/constants/color_constants.dart';
 import 'package:streamnexadmin/core/constants/text_styles.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import '../../user_details_screen/view/user_details_screen.dart';
 
-class UserManagementScreen extends StatelessWidget {
-  final List<User> users = [
-    User('john_doe', 'john@email.com', 'Premium', 'Active', '2023-01-15'),
-    User('jane_smith', 'jane@email.com', 'Basic', 'Active', '2023-02-20'),
-    User('bob_wilson', 'bob@email.com', 'Premium', 'Suspended', '2023-03-10'),
-    User('alice_brown', 'alice@email.com', 'Standard', 'Active', '2023-04-05'),
-    User('mike_davis', 'mike@email.com', 'Premium', 'Active', '2023-05-12'),
-    User('sarah_jones', 'sarah@email.com', 'Basic', 'Inactive', '2023-06-08'),
-  ];
+class UserManagementScreen extends StatefulWidget {
+  @override
+  _UserManagementScreenState createState() => _UserManagementScreenState();
+}
+
+class _UserManagementScreenState extends State<UserManagementScreen> {
+  List<User> users = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      print('🔍 Starting to load users from Firestore...');
+      
+      // Try to load users from Firestore collection
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .orderBy('createdAt', descending: true)
+          .get();
+
+      print('📊 Found ${querySnapshot.docs.length} users in Firestore');
+
+      setState(() {
+        users = querySnapshot.docs.map((doc) {
+          final data = doc.data();
+          print('👤 Loading user: ${data['email'] ?? 'Unknown'}');
+          return User(
+            data['uid']?.toString() ?? doc.id, // Use uid field if available, otherwise doc.id
+            data['displayName']?.toString() ?? data['email']?.toString().split('@')[0] ?? 'Unknown',
+            data['email']?.toString() ?? 'No email',
+            data['plan']?.toString() ?? 'Basic',
+            data['status']?.toString() ?? 'Active',
+            _formatDate(data['createdAt']),
+          );
+        }).toList();
+        _isLoading = false;
+      });
+      
+      print('✅ Users loading completed - loaded ${users.length} users');
+      
+    } catch (e) {
+      print('❌ Error loading users: $e');
+      setState(() {
+        users = [];
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return 'Unknown';
+    try {
+      if (date is Timestamp) {
+        final dateTime = date.toDate();
+        return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
+      }
+      if (date is String) {
+        return date;
+      }
+    } catch (e) {
+      print('Error formatting date: $e');
+    }
+    return 'Unknown';
+  }
+
+
+
 
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     
-    // Responsive values
     final isTablet = screenWidth > 600;
     final isMobile = screenWidth <= 600;
     final padding = isTablet ? 24.0 : 16.0;
@@ -35,6 +100,7 @@ class UserManagementScreen extends StatelessWidget {
           style: TextStyles.appBarHeadding(),
         ),
         automaticallyImplyLeading: false,
+        
       ),
       body: Padding(
         padding: EdgeInsets.all(padding),
@@ -71,9 +137,49 @@ class UserManagementScreen extends StatelessWidget {
             ),
             SizedBox(height: spacing),
             Expanded(
-              child: ListView.builder(
-                itemCount: users.length,
-                itemBuilder: (context, index) {
+              child: _isLoading
+                  ? Center(
+                      child: CircularProgressIndicator(
+                        color: ColorTheme.secondaryColor,
+                      ),
+                    )
+                  : users.isEmpty
+                      ? Builder(
+                          builder: (context) {
+                            print('📱 Rendering empty state - users count: ${users.length}, isLoading: $_isLoading');
+                            return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.people_outline,
+                                size: 80,
+                                color: Colors.grey[600],
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'No Users Found',
+                                style: TextStyles.subText(
+                                  color: Colors.grey[400],
+                                  size: isTablet ? 20 : 18,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                'No users have been registered yet.\nUsers will appear here when they sign up.',
+                                style: TextStyles.smallText(
+                                  color: Colors.grey[500],
+                                  size: isTablet ? 14 : 12,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
+                          ),
+                        );
+  })
+                      : ListView.builder(
+                          itemCount: users.length,
+                          itemBuilder: (context, index) {
                   final user = users[index];
                   return Card(
                     color: Colors.grey[850],
@@ -110,7 +216,7 @@ class UserManagementScreen extends StatelessWidget {
                           ),
                           SizedBox(height: 4),
                           Text(
-                            '${user.plan} • Joined: ${user.joinDate}',
+                            'Joined: ${user.joinDate}',
                             style: TextStyles.smallText(
                               color: Colors.grey[400],
                               size: isTablet ? 14 : 12,
@@ -118,44 +224,7 @@ class UserManagementScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: isTablet ? 12 : 8, 
-                              vertical: isTablet ? 6 : 4
-                            ),
-                            decoration: BoxDecoration(
-                              color: user.status == 'Active' 
-                                  ? Colors.green.withOpacity(0.2)
-                                  : user.status == 'Suspended'
-                                      ? Colors.orange.withOpacity(0.2)
-                                      : Colors.red.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: user.status == 'Active' 
-                                    ? Colors.green
-                                    : user.status == 'Suspended'
-                                        ? Colors.orange
-                                        : Colors.red,
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              user.status, 
-                              style: TextStyle(
-                                fontSize: isTablet ? 12 : 10,
-                                color: user.status == 'Active' 
-                                    ? Colors.green
-                                    : user.status == 'Suspended'
-                                        ? Colors.orange
-                                        : Colors.red,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: 8),
+                      trailing: 
                           PopupMenuButton(
                             icon: Icon(
                               Icons.more_vert, 
@@ -163,6 +232,7 @@ class UserManagementScreen extends StatelessWidget {
                               size: isTablet ? 28 : 24,
                             ),
                             color: Colors.grey[850],
+                            onSelected: (value) => _handleMenuAction(value, user),
                             itemBuilder: (context) => [
                               PopupMenuItem(
                                 child: Text(
@@ -174,16 +244,7 @@ class UserManagementScreen extends StatelessWidget {
                                 ),
                                 value: 'view',
                               ),
-                              PopupMenuItem(
-                                child: Text(
-                                  'Suspend', 
-                                  style: TextStyles.smallText(
-                                    color: Colors.orange,
-                                    size: isTablet ? 16 : 14,
-                                  ),
-                                ),
-                                value: 'suspend',
-                              ),
+                              
                               PopupMenuItem(
                                 child: Text(
                                   'Delete', 
@@ -196,8 +257,8 @@ class UserManagementScreen extends StatelessWidget {
                               ),
                             ],
                           ),
-                        ],
-                      ),
+                        
+                      
                     ),
                   );
                 },
@@ -208,14 +269,129 @@ class UserManagementScreen extends StatelessWidget {
       ),
     );
   }
+
+  void _handleMenuAction(String action, User user) {
+    switch (action) {
+      case 'view':
+        // Navigate to user details screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => UserDetailsScreen(
+              userId: user.userId,
+              userName: user.username,
+              userEmail: user.email,
+            ),
+          ),
+        );
+        break;
+      
+      case 'delete':
+        _showDeleteDialog(user);
+        break;
+    }
+  }
+
+
+  void _showDeleteDialog(User user) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[850],
+        title: Text(
+          'Delete User',
+          style: TextStyles.subText(color: Colors.white),
+        ),
+        content: Text(
+          'Are you sure you want to delete ${user.username}? This action cannot be undone.',
+          style: TextStyles.smallText(color: Colors.grey[300]),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: TextStyles.smallText(color: Colors.grey[400]),
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await _deleteUser(user);
+            },
+            child: Text(
+              'Delete',
+              style: TextStyles.smallText(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteUser(User user) async {
+    try {
+      print('🗑️ Deleting user: ${user.userId}');
+      
+      // Show loading indicator
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => Center(
+          child: CircularProgressIndicator(
+            color: ColorTheme.secondaryColor,
+          ),
+        ),
+      );
+
+      // Delete user from Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.userId)
+          .delete();
+
+      print('✅ User deleted from Firestore successfully');
+
+      // Close loading dialog
+      Navigator.pop(context);
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ User ${user.username} deleted successfully'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+      // Reload the users list
+      await _loadUsers();
+
+    } catch (e) {
+      print('❌ Error deleting user: $e');
+      
+      // Close loading dialog
+      Navigator.pop(context);
+
+      // Show error message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error deleting user: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  }
 }
 
 class User {
+  final String userId;
   final String username;
   final String email;
   final String plan;
   final String status;
   final String joinDate;
 
-  User(this.username, this.email, this.plan, this.status, this.joinDate);
+  User(this.userId, this.username, this.email, this.plan, this.status, this.joinDate);
 }

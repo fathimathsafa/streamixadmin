@@ -1,6 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:streamnexadmin/presentation/bottom_navigation_screen/view/bottom_navigation_screen.dart';
 import 'package:streamnexadmin/presentation/spalsh_screen/view/splash_screen.dart';
 
 void main() async {
