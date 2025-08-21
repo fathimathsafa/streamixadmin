@@ -1,15 +1,14 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:streamnexadmin/firebase_options.dart';
 import 'package:streamnexadmin/presentation/spalsh_screen/view/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
    
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint('Firebase initialization failed: $e');
-  }
+ await Firebase.initializeApp(
+  options: DefaultFirebaseOptions.currentPlatform,
+ );
   
   runApp(const MyApp());
 }

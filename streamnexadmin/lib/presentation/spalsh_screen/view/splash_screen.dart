@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:streamnexadmin/core/constants/color_constants.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:streamnexadmin/presentation/bottom_navigation_screen/view/bottom_navigation_screen.dart';
 import 'package:streamnexadmin/presentation/login_screen/view/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -9,129 +11,91 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
+    _controller = AnimationController(
       vsync: this,
+      duration: const Duration(milliseconds: 1000),
     );
-
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.0, 0.6, curve: Curves.easeInOut),
-      ),
+    _scaleAnim = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
-
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        curve: const Interval(0.2, 0.8, curve: Curves.elasticOut),
-      ),
-    );
-
-    _animationController.forward();
-    
-    // Navigate after 3 seconds
-    _navigateToNextScreen();
+    _controller.repeat(reverse: true);
+    _navigateBasedOnAuth();
   }
 
-  void _navigateToNextScreen() {
-    Future.delayed(const Duration(seconds: 8), () {
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => LogInScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              const begin = Offset(1.0, 0.0);
-              const end = Offset.zero;
-              const curve = Curves.easeInOut;
+  Future<void> _navigateBasedOnAuth() async {
+    // Keep splash visible for ~2s
+    await Future.delayed(const Duration(milliseconds: 2000));
+    if (!mounted) return;
 
-              var tween = Tween(begin: begin, end: end).chain(
-                CurveTween(curve: curve),
-              );
-
-              return SlideTransition(
-                position: animation.drive(tween),
-                child: child,
-              );
-            },
-            transitionDuration: const Duration(milliseconds: 500),
-          ),
-        );
+    Widget target = LogInScreen();
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final adminDoc = await FirebaseFirestore.instance
+            .collection('admins')
+            .doc(user.uid)
+            .get();
+        if (adminDoc.exists) {
+          target = BottomNavigationScreen();
+        }
       }
-    });
+    } catch (_) {}
+
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => target,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final tween = Tween(begin: const Offset(1.0, 0.0), end: Offset.zero)
+              .chain(CurveTween(curve: Curves.easeInOut));
+          return SlideTransition(position: animation.drive(tween), child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    
-    // Responsive values
-    final isTablet = screenWidth > 600;
-    final fontSize = isTablet ? 48.0 : 36.0;
-    final letterSpacing = isTablet ? 2.0 : 1.5;
-    final spacing = isTablet ? 20.0 : 15.0;
-    final iconSize = isTablet ? 30.0 : 25.0;
-    final strokeWidth = isTablet ? 2.0 : 1.5;
-    
+    final size = MediaQuery.of(context).size;
+    final isTablet = size.width > 600;
+    final titleSize = isTablet ? 42.0 : 32.0;
+   
+
     return Scaffold(
-      backgroundColor: ColorTheme.mainColor,
+      backgroundColor: Colors.black,
       body: Center(
-        child: AnimatedBuilder(
-          animation: _animationController,
-          builder: (context, child) {
-            return FadeTransition(
-              opacity: _fadeAnimation,
-              child: ScaleTransition(
-                scale: _scaleAnimation,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'STREAMIX',
-                      style: TextStyle(
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.w900,
-                        color: ColorTheme.secondaryColor,
-                        letterSpacing: letterSpacing,
-                        fontFamily: 'Arial',
-                      ),
-                    ),
-                    
-                    SizedBox(height: spacing),
-                    
-                    // Loading indicator
-                    SizedBox(
-                      width: iconSize,
-                      height: iconSize,
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          ColorTheme.secondaryColor,
-                        ),
-                        strokeWidth: strokeWidth,
-                      ),
-                    ),
-                  ],
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ScaleTransition(
+              scale: _scaleAnim,
+              child: Text(
+                'STREAMIX',
+                style: TextStyle(
+                  fontSize: titleSize,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFFE50914),
+                  letterSpacing: 2.0,
+                  fontFamily: 'Arial',
                 ),
               ),
-            );
-          },
+            ),
+           
+          ],
         ),
       ),
     );

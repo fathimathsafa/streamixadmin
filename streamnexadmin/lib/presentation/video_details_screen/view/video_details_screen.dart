@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:streamnexadmin/core/constants/color_constants.dart';
 import 'package:streamnexadmin/core/constants/text_styles.dart';
+import 'package:streamnexadmin/presentation/models/content.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 import 'package:streamnexadmin/presentation/content_managment_screen/view/content_managment_screen.dart';

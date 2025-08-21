@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:streamnexadmin/core/constants/color_constants.dart';
 import 'package:streamnexadmin/core/constants/text_styles.dart';
-import '../../content_managment_screen/view/video_details_screen.dart';
+import 'package:streamnexadmin/presentation/models/content.dart';
+import '../../video_details_screen/view/video_details_screen.dart';
 import '../../content_managment_screen/view/content_managment_screen.dart';
 
 class UserDetailsScreen extends StatefulWidget {
